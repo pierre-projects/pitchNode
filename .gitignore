@@ -11,6 +11,8 @@
 
 # misc
 .DS_Store
+Thumbs.db
+Desktop.ini
 *.pem
 
 # debug
@@ -20,7 +22,13 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # local env files
+.env
 .env*.local
+
+# editor and local tooling
+.vscode/
+.idea/
+.codex
 
 out/
 build/
@@ -31,3 +39,4 @@ dist/
 
 # typescript
 .tsbuildinfo
+*.tsbuildinfo
