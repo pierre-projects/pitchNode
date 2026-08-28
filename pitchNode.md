@@ -20,13 +20,13 @@ The stack is optimized for rapid development, modern Chrome extension standards,
 | **UI Library** | **React** | Drives the component-based architecture for sharing UI across extension views. |
 | **Styling** | **Tailwind CSS** | Enables rapid, responsive styling that scales seamlessly from a small popup to a tall side panel. |
 | **Audio Engine** | **Web Audio API** | Captures the raw microphone stream directly from the browser. |
-| **DSP Math** | **`pitchfinder` (npm)** | Provides pre-optimized JavaScript implementations of the YIN/McLeod pitch detection algorithms. |
+| **DSP Math** | **Internal YIN detector** | Provides amplitude-invariant, range-aware monophonic pitch detection with reusable processing buffers. |
 
 ## 3. System Architecture
 PitchNode utilizes a **Shared Component Architecture** to prevent code duplication across the Chrome Extension's different rendering contexts.
 
-* **Logic Layer (`useTuner.ts`):** A custom React hook that initializes the `AudioContext`, requests microphone permissions, and runs the `pitchfinder` algorithm inside a `requestAnimationFrame` loop.
-* **Utility Layer (`noteResolver.ts`):** Pure mathematical functions that convert the raw Hz output from `pitchfinder` into standardized musical data (Target Note, Target Frequency, Cents Off).
+* **Logic Layer (`useTuner.ts`):** A custom React hook that initializes the `AudioContext`, requests microphone permissions, and runs the internal YIN detector and balanced note tracker inside a `requestAnimationFrame` loop.
+* **Utility Layer (`pitchDetector.ts`, `pitchTracker.ts`, and `noteResolver.ts`):** Pure DSP and tracking functions detect raw pitch, confirm stable note changes, and convert Hz into standardized musical data (Target Note, Target Frequency, Cents Off).
 * **Presentation Layer (`TunerUI.tsx`):** A single, responsive React component that consumes the `useTuner` hook and renders the visual dial.
 * **Entry Points (`popup.tsx` & `sidepanel.tsx`):** Plasmo-specific entry files that both import and mount the exact same `TunerUI` component.
 
@@ -52,4 +52,4 @@ To function securely within Chrome's Manifest V3 environment, the `manifest.json
 * `"sidePanel"`: Required to mount the persistent UI mode.
 
 ## 6. Future Scope (Post-MVP)
-While V1.0 is strictly a monophonic tuner, PitchNode is designed so the core logic can later be decoupled. In V2.0, the `useTuner` and `pitchfinder` logic will be extracted into an independent API package, allowing it to be dropped into mobile applications, full-stack Next.js applications, and polyphonic chord-detection systems.
+While V1.0 is strictly a monophonic tuner, PitchNode is designed so the core logic can later be decoupled. In V2.0, the `useTuner`, detector, and tracker logic will be extracted into an independent API package, allowing it to be dropped into mobile applications, full-stack Next.js applications, and polyphonic chord-detection systems.
