@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
-import { YIN } from "pitchfinder"
-
-import { resolveNote, type NoteInfo } from "~src/utils/noteResolver"
+import type { NoteInfo } from "~src/utils/noteResolver"
+import {
+  createYinDetector,
+  DEFAULT_ANALYSIS_SIZE,
+  type YinPitchDetector
+} from "~src/utils/pitchDetector"
+import { PitchTracker, type TrackedPitch } from "~src/utils/pitchTracker"
 
 export type TunerStatus = "idle" | "listening" | "error"
 
@@ -27,14 +31,10 @@ export interface TunerControls {
   refreshInputs: () => Promise<void>
 }
 
-// 4096 → YIN uses bufferSize=2048, yinBufferLength=1024
-// min detectable freq = sampleRate / 1024 ≈ 43 Hz (covers drop A and below)
+// Keep a larger rolling AnalyserNode buffer, then analyze its newest 2048 samples.
 const BUFFER_SIZE = 4096
-const NOISE_GATE_RMS = 0.001  // very low — rely on YIN + range filter for quality
-const HOLD_DURATION_MS = 3000 // keep last reading visible after signal fades
-const SMOOTHING_ALPHA = 0.5   // higher = faster convergence to new frequency (~5 frames)
-const MIN_FREQ = 40           // below drop-A tuning
-const MAX_FREQ = 2000         // above practical guitar range
+const NOISE_GATE_RMS = 0.001
+const HIGH_PASS_FREQUENCY = 30
 
 const STORAGE_KEY = "pitchnode_inputDeviceId"
 
@@ -61,24 +61,27 @@ export function useTuner(): TunerState & TunerControls {
   const [frequency, setFrequency] = useState<number | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [availableInputs, setAvailableInputs] = useState<AudioInputDevice[]>([])
-  const [selectedInputId, setSelectedInputIdState] = useState<string | null>(loadStoredDeviceId)
+  const [selectedInputId, setSelectedInputIdState] = useState<string | null>(
+    loadStoredDeviceId
+  )
 
   // Refs for audio resources
   const audioContextRef = useRef<AudioContext | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const rafRef = useRef<number | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
-  const detectorRef = useRef<((buf: Float32Array) => number | null) | null>(null)
+  const highPassRef = useRef<BiquadFilterNode | null>(null)
+  const detectorRef = useRef<YinPitchDetector | null>(null)
+  const trackerRef = useRef<PitchTracker | null>(null)
+  const publishedReadingRef = useRef<TrackedPitch | null>(null)
 
   // Refs used to avoid stale closures in callbacks / RAF loop
   const stopTuningRef = useRef<() => void>(() => {})
-  const startTuningCoreRef = useRef<(deviceId: string | null) => Promise<void>>(async () => {})
+  const startTuningCoreRef = useRef<(deviceId: string | null) => Promise<void>>(
+    async () => {}
+  )
   const statusRef = useRef<TunerStatus>("idle")
   const selectedInputIdRef = useRef<string | null>(selectedInputId)
-
-  // EMA + hold state — kept in refs to avoid stale closure issues in RAF loop
-  const smoothedFreqRef = useRef<number | null>(null)
-  const lastValidTimeRef = useRef<number>(0)
 
   // Keep refs in sync with state
   statusRef.current = status
@@ -98,9 +101,11 @@ export function useTuner(): TunerState & TunerControls {
       audioContextRef.current = null
     }
     analyserRef.current = null
+    highPassRef.current = null
     detectorRef.current = null
-    smoothedFreqRef.current = null
-    lastValidTimeRef.current = 0
+    trackerRef.current?.reset()
+    trackerRef.current = null
+    publishedReadingRef.current = null
     setStatus("idle")
     setNoteInfo(null)
     setFrequency(null)
@@ -150,13 +155,22 @@ export function useTuner(): TunerState & TunerControls {
 
         const { sampleRate } = audioContext
 
-        detectorRef.current = YIN({ sampleRate, threshold: 0.15 })
+        detectorRef.current = createYinDetector({ sampleRate })
+        trackerRef.current = new PitchTracker()
+        publishedReadingRef.current = null
 
         const source = audioContext.createMediaStreamSource(stream)
+        const highPass = audioContext.createBiquadFilter()
+        highPass.type = "highpass"
+        highPass.frequency.value = HIGH_PASS_FREQUENCY
+        highPass.Q.value = Math.SQRT1_2
+        highPassRef.current = highPass
+
         const analyser = audioContext.createAnalyser()
         analyser.fftSize = BUFFER_SIZE
         analyser.smoothingTimeConstant = 0
-        source.connect(analyser)
+        source.connect(highPass)
+        highPass.connect(analyser)
         analyserRef.current = analyser
 
         const buffer = new Float32Array(BUFFER_SIZE)
@@ -169,52 +183,35 @@ export function useTuner(): TunerState & TunerControls {
         await refreshInputs()
 
         const detect = () => {
-          if (!analyserRef.current || !detectorRef.current) return
+          if (
+            !analyserRef.current ||
+            !detectorRef.current ||
+            !trackerRef.current
+          )
+            return
 
           analyserRef.current.getFloatTimeDomainData(buffer)
 
-          // RMS energy of the frame
+          // Measure the same newest samples that are passed to YIN. The gate is
+          // intentionally absolute, so a previous loud note cannot raise it.
           let sumSq = 0
-          for (let i = 0; i < buffer.length; i++) sumSq += buffer[i] * buffer[i]
-          const rms = Math.sqrt(sumSq / buffer.length)
+          const analysisStart = buffer.length - DEFAULT_ANALYSIS_SIZE
+          for (let i = analysisStart; i < buffer.length; i++) {
+            sumSq += buffer[i] * buffer[i]
+          }
+          const rms = Math.sqrt(sumSq / DEFAULT_ANALYSIS_SIZE)
+          const pitch =
+            rms >= NOISE_GATE_RMS
+              ? detectorRef.current.detect(buffer)?.frequency ?? null
+              : null
+          const reading = trackerRef.current.process(pitch, performance.now())
 
-          if (rms >= NOISE_GATE_RMS) {
-            // Signal is present — extend the hold timer regardless of YIN result.
-            // YIN often returns null on attack transients or complex overtone frames
-            // even while the string is clearly audible; we must not let the hold
-            // timer count from the last successful detection in those cases.
-            lastValidTimeRef.current = performance.now()
-
-            const pitch = detectorRef.current(buffer)
-
-            if (pitch !== null && pitch >= MIN_FREQ && pitch <= MAX_FREQ) {
-              // EMA smoothing — snap on first detection or large jumps (re-strike)
-              if (smoothedFreqRef.current === null) {
-                smoothedFreqRef.current = pitch
-              } else {
-                const ratio = pitch / smoothedFreqRef.current
-                if (ratio > 0.8 && ratio < 1.25) {
-                  // Same general note — smooth it
-                  smoothedFreqRef.current =
-                    SMOOTHING_ALPHA * pitch +
-                    (1 - SMOOTHING_ALPHA) * smoothedFreqRef.current
-                } else {
-                  // Large jump (new string struck) — snap immediately
-                  smoothedFreqRef.current = pitch
-                }
-              }
-
-              setFrequency(smoothedFreqRef.current)
-              setNoteInfo(resolveNote(smoothedFreqRef.current))
-            }
-            // YIN returned null — keep previous state, don't flicker
-          } else {
-            // Below noise gate — hold for HOLD_DURATION_MS, then clear
-            if (performance.now() - lastValidTimeRef.current >= HOLD_DURATION_MS) {
-              smoothedFreqRef.current = null
-              setNoteInfo(null)
-              setFrequency(null)
-            }
+          // Pending candidates and held readings retain their object identity,
+          // avoiding redundant React updates while the tracker waits or holds.
+          if (reading !== publishedReadingRef.current) {
+            publishedReadingRef.current = reading
+            setFrequency(reading?.frequency ?? null)
+            setNoteInfo(reading?.noteInfo ?? null)
           }
 
           rafRef.current = requestAnimationFrame(detect)

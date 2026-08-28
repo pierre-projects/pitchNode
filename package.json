@@ -7,11 +7,12 @@
   "scripts": {
     "dev": "plasmo dev",
     "build": "plasmo build",
-    "package": "plasmo package"
+    "package": "plasmo package",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "lucide-react": "^1.8.0",
-    "pitchfinder": "^2.3.4",
     "plasmo": "0.90.5",
     "react": "18.2.0",
     "react-dom": "18.2.0"
@@ -25,14 +26,20 @@
     "autoprefixer": "^10.5.0",
     "prettier": "3.2.4",
     "tailwindcss": "^3.4.19",
-    "typescript": "5.3.3"
+    "typescript": "5.3.3",
+    "vitest": "^4.1.11"
   },
   "manifest": {
     "action": {
       "default_popup": "popup.html"
     },
-    "permissions": ["sidePanel", "microphone"],
-    "host_permissions": ["https://*/*"],
+    "permissions": [
+      "sidePanel",
+      "microphone"
+    ],
+    "host_permissions": [
+      "https://*/*"
+    ],
     "side_panel": {
       "default_path": "sidepanel.html"
     }
