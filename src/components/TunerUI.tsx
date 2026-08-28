@@ -281,7 +281,14 @@ export function TunerUI() {
       {/* ── Footer ── */}
       <div className="w-full flex items-center justify-between mt-2">
         <span className="text-[8px] tracking-widest uppercase" style={{ color: "#bbb" }}>Output</span>
-        <span className="text-[8px] tracking-[0.15em] uppercase" style={{ color: "#aaa" }}>by pierres.dev</span>
+        <a
+          href="https://pierres.dev"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[8px] tracking-[0.15em] uppercase"
+          style={{ color: "#aaa", textDecoration: "none" }}>
+          by pierres.dev
+        </a>
         {availableInputs.length > 1 ? (
           <select
             value={selectedInputId ?? ""}
