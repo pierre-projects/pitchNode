@@ -28,6 +28,19 @@ function getMeterPos(centsOff: number): number {
   return ((Math.max(-50, Math.min(50, centsOff)) + 50) / 100) * 100
 }
 
+// Solid triangle drawn as SVG so Windows never swaps in the ◀ ▶ color emoji.
+// Sized in em and filled with currentColor, so it follows the parent's font size and color.
+function Arrow({ direction, size = "0.75em" }: { direction: "left" | "right"; size?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 10 10"
+      style={{ width: size, height: size, display: "inline-block", fill: "currentColor", flexShrink: 0 }}>
+      <polygon points={direction === "left" ? "9,1 9,9 1,5" : "1,1 1,9 9,5"} />
+    </svg>
+  )
+}
+
 function formatCents(c: number): string {
   const sign = c >= 0 ? "+" : ""
   return `${sign}${c.toFixed(1)}¢`
@@ -59,7 +72,8 @@ export function TunerUI() {
   const sharpColor = "#dc2626" // red
   const tuneColor = "#dc2626"  // same red, full glow when in tune
 
-  const centsColor = inTune ? "#fff" : isFlat ? flatColor : isSharp ? sharpColor : "#555"
+  // In tune = neutral dark print on the cream panel (flat/sharp keep their amber/red)
+  const centsColor = inTune ? "#1a1a1a" : isFlat ? flatColor : isSharp ? sharpColor : "#555"
   const dotColor = inTune ? tuneColor : isFlat ? flatColor : isSharp ? sharpColor : "#2a0a0a"
   const dotGlow = inTune
     ? "0 0 10px 4px rgba(220,38,38,0.85)"
@@ -145,7 +159,7 @@ export function TunerUI() {
               opacity: biglyOff && isFlat ? 1 : 0,
               transition: "opacity 150ms ease"
             }}>
-            ◀
+            <Arrow direction="left" />
           </span>
 
           <span
@@ -171,7 +185,7 @@ export function TunerUI() {
               opacity: biglyOff && isSharp ? 1 : 0,
               transition: "opacity 150ms ease"
             }}>
-            ▶
+            <Arrow direction="right" />
           </span>
         </div>
 
@@ -204,20 +218,22 @@ export function TunerUI() {
           {/* FLAT / SHARP labels */}
           <div className="w-full flex justify-between">
             <span
-              className="text-[9px] font-black tracking-widest uppercase"
+              className="flex items-center gap-[0.4em] text-[9px] font-black tracking-widest uppercase"
               style={{
                 color: isFlat ? flatColor : "rgba(255,255,255,0.2)",
                 transition: "color 150ms"
               }}>
-              ◀ Flat
+              <Arrow direction="left" size="1em" />
+              Flat
             </span>
             <span
-              className="text-[9px] font-black tracking-widest uppercase"
+              className="flex items-center gap-[0.4em] text-[9px] font-black tracking-widest uppercase"
               style={{
                 color: isSharp ? sharpColor : "rgba(255,255,255,0.2)",
                 transition: "color 150ms"
               }}>
-              Sharp ▶
+              Sharp
+              <Arrow direction="right" size="1em" />
             </span>
           </div>
         </div>
@@ -270,9 +286,9 @@ export function TunerUI() {
           transition: "all 0.1s ease"
         }}>
         <span
-          className="font-black tracking-[0.25em] uppercase text-xs"
+          className="inline-flex items-center gap-[0.6em] font-black tracking-[0.25em] uppercase text-xs"
           style={{ color: isListening ? "#dc2626" : "#1a1a1a" }}>
-          {isListening ? "■  Stop" : "▶  Start"}
+          {isListening ? "■  Stop" : <><Arrow direction="right" size="1em" />Start</>}
         </span>
         <div style={{ position: "absolute", top: "6px", left: "8px", width: "8px", height: "8px", borderRadius: "50%", background: isListening ? "#333" : "#bbb", boxShadow: "inset 0 1px 1px rgba(0,0,0,0.3)" }} />
         <div style={{ position: "absolute", top: "6px", right: "8px", width: "8px", height: "8px", borderRadius: "50%", background: isListening ? "#333" : "#bbb", boxShadow: "inset 0 1px 1px rgba(0,0,0,0.3)" }} />
