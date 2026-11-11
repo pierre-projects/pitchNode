@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><defs>
+<linearGradient id="body" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e1e1e"/><stop offset="1" stop-color="#0a0a0a"/></linearGradient>
+<filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs><rect x="28" y="28" width="456" height="456" rx="104" fill="#f0ede8"/>
+<rect x="46" y="46" width="420" height="420" rx="88" fill="url(#body)"/><line x1="116.3" y1="266.2" x2="80.6" y2="234.1" stroke="#a8a29a" stroke-width="20" stroke-linecap="round"/><line x1="145.5" y1="239.9" x2="117.3" y2="201.1" stroke="#a8a29a" stroke-width="20" stroke-linecap="round"/><line x1="179.5" y1="220.3" x2="160.0" y2="176.4" stroke="#a8a29a" stroke-width="20" stroke-linecap="round"/><line x1="216.9" y1="208.1" x2="206.9" y2="161.2" stroke="#a8a29a" stroke-width="20" stroke-linecap="round"/><line x1="295.1" y1="208.1" x2="305.1" y2="161.2" stroke="#a8a29a" stroke-width="20" stroke-linecap="round"/><line x1="332.5" y1="220.3" x2="352.0" y2="176.4" stroke="#a8a29a" stroke-width="20" stroke-linecap="round"/><line x1="366.5" y1="239.9" x2="394.7" y2="201.1" stroke="#a8a29a" stroke-width="20" stroke-linecap="round"/><line x1="395.7" y1="266.2" x2="431.4" y2="234.1" stroke="#a8a29a" stroke-width="20" stroke-linecap="round"/><g filter="url(#glow)">
+<polygon points="236,392 256,116 276,392" fill="#ef2b2b"/>
+<circle cx="256" cy="392" r="30" fill="#ef2b2b"/></g>
+<circle cx="256" cy="392" r="11" fill="#0d0d0d"/></svg>

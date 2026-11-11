@@ -2,7 +2,7 @@
   "name": "pitchnode",
   "displayName": "Pitchnode",
   "version": "0.0.1",
-  "description": "tuner",
+  "description": "Chromatic tuner for guitar, bass and more. Live note, Hz and cents with a flat/sharp meter. Audio never leaves your device.",
   "author": "pierres.dev",
   "scripts": {
     "dev": "plasmo dev",
@@ -36,9 +36,6 @@
     "permissions": [
       "sidePanel",
       "microphone"
-    ],
-    "host_permissions": [
-      "https://*/*"
     ],
     "side_panel": {
       "default_path": "sidepanel.html"
